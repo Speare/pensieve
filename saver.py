@@ -26,11 +26,29 @@ def ssl_required(fn):
 @app.route('/')
 def index():
 	results = []
+	query = None
 	if 'search' in request.args:
 		query = request.args['search']
-		print query
-		results.append(query)
-	return render_template('index.html', results=results)
+	# 	results.append(query)
+	entities = None
+	with open(datab) as db:
+		reader = csv.reader(db, delimiter='\\')
+		for row in reader:
+			with open('data/%s' % row[2]) as f:
+				# show only the begnning part of the text
+				text = '\n'.join(f.readlines())
+				text = text.split('\n\n')[0]
+				note = {
+					'url' 		: row[0],
+					'title' 	: row[1],
+					'text'		: text[:1000],
+					'date' 		: row[3],
+					'entities' 	: row[4],
+					'image' 	: row[5],
+				}
+				results.append(note)
+
+	return render_template('index.html', query=query, results=results)
 
 @app.route('/llamaz')
 @ssl_required
@@ -45,7 +63,7 @@ def llamaz():
 	article = g.extract(raw_html = html)
 	article.cleaned_text = u.normalize('NFKD', article.cleaned_text).encode('ascii','ignore')
 
-	print 'TITLE: %s' % article.title
+	print '\nTITLE: %s' % article.title
 	print 'IMAGE: %s' % article.top_image.src if article.top_image else "None"
 	print 'TEXT LENGTH: %s' % len(article.cleaned_text)
 	
@@ -53,10 +71,10 @@ def llamaz():
 	# save article data to file
 	entities = None
 	with open(datab) as f:
-		reader = csv.reader(f, delimiter=',')
+		reader = csv.reader(f, delimiter='\\')
 		for row in reader:
 			if row[0] == url:
-				entities = row[4].split('\\')
+				entities = row[4].split('|')
 
 	if not entities:
 		entities = requests.get(rhine_url + 'entity_extraction/%s' % article.cleaned_text).json()['entities']
@@ -67,12 +85,12 @@ def llamaz():
 		with open('data/%s' % filename , 'w') as f:
 			f.write(article.cleaned_text)
 		with open(datab, 'a') as f:
-			writer = csv.writer(f, delimiter=',')
+			writer = csv.writer(f, delimiter='\\')
 			writer.writerow((url, article.title, filename, str(time.time()), 
-				(','.join((s.replace('_', ' ') for s in entities))),
+				('|'.join(entities)),
 				str(article.top_image.src)))
 
-	print 'ENTITIES: %s' % len(entities)
+	print 'ENTITIES: %s\n' % len(entities)
 	return swal_response % (', '.join((s.replace('_', ' ') for s in entities))) 
 	# return app.send_static_file('topbar.js')
 

@@ -1,5 +1,5 @@
 javascript:(function(){
-	var h = 'https://127.0.0.1:5000/',
+	var h = 'http://127.0.0.1:5000/',
 		n = document.location.href,
 		r = document.title;
 
@@ -9,12 +9,12 @@ javascript:(function(){
 
 	var a = document.createElement('script');
 	a.type = 'text/javascript';
-	a.src = h + 'static/sweet-alert.min.js';
+	a.src = h + 'static/js/sweet-alert.min.js';
 
 	var b = document.createElement('link');
 	b.type = 'text/css';
 	b.rel = 'stylesheet';
-	b.href = h + 'static/sweet-alert.css';
+	b.href = h + 'static/css/sweet-alert.css';
 
 	o = document.getElementsByTagName('head')[0] || document.documentElement;
 	o.appendChild(a);

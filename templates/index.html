@@ -30,7 +30,11 @@
                         <span class="sb-icon-search"></span>
                     </form>
                 </div>
-                
+            </div>
+            <div style="margin-top: 100px;">
+                {% if query %}
+                <h2>{{ results|length }} search results for {{ query }}</h2>
+                {% endif %}
             </div>
         </div>
     </div><!-- /container -->
@@ -39,7 +43,14 @@
         {% if results %}
             {% for result in results %}
                 <div class="item shadow">
-                    <div class="headline">{{ result }}</div>
+                    {% if results.image == "" %}
+                    {% else %}
+                    <img src="{{ result.image }}"></img>
+                    {% endif %}
+
+                    <div class="headline">{{ result.title }}</div>
+                    <div class="text">{{ result.text }}</div>
+                    <a href="{{ result.url }}">view original</a>
                     <div class="footer"></div>
                 </div>
             {% endfor %}
@@ -50,28 +61,8 @@
     <script src="static/js/classie.js"></script>
     <script src="static/js/uisearch.js"></script>
     <script>
-        /*function addData(data) {
-            var container = document.getElementById("masonry_container");
-
-            divs = [];
-            data.forEach(function(d) {
-                var div = document.createElement('div');
-                div.className = "item shadow ";
-                text = ['<div class="headline">' + d+ '</div>'];
-
-                text.push('<div class="footer"></div>');
-                text = text.join('\n');
-
-                div.innerHTML = text;
-                divs.push(div);
-                container.appendChild(div);
-            })
-            msnry.appended(divs);
-            msnry.layout();
-        }*/
-
         UISearch = new UISearch( document.getElementById( 'sb-search' ) );
-        // setTimeout(function() { UISearch.open(); }, 200);
+        setTimeout(function() { UISearch.open(); }, 200);
 
         var container = document.querySelector('#masonry_container');
         var msnry = new Masonry(container, {

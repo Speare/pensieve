@@ -77,7 +77,7 @@
 
 .sb-icon-search {
 	color: #fff;
-	background: #e67e22;
+	background: #6fedb7;
 	z-index: 90;
 	font-size: 22px;
 	font-family: 'icomoon';
@@ -101,7 +101,7 @@
 
 .sb-search.sb-search-open .sb-icon-search,
 .no-js .sb-search .sb-icon-search {
-	background: #da6d0d;
+	background: #6fedb7;
 	color: #fff;
 	z-index: 11;
 }
