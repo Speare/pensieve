@@ -1,5 +1,5 @@
 javascript:(function(){
-	var h = 'http://127.0.0.1:5000/',
+	var h = 'https://127.0.0.1:5000/',
 		n = document.location.href,
 		r = document.title;
 
@@ -16,14 +16,10 @@ javascript:(function(){
 	b.rel = 'stylesheet';
 	b.href = h + 'static/sweet-alert.css';
 
-	var c = document.createElement('link');
-	c.type = 'text/css';
-	c.rel = 'stylesheet';
-	c.href = h + 'static/readability.css';
-
 	o = document.getElementsByTagName('head')[0] || document.documentElement;
 	o.appendChild(a);
 	o.appendChild(b);
-	o.appendChild(c);
 	o.appendChild(s);
 })()
+
+// var h = 'http://54.87.238.201:5000/',

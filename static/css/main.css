@@ -1,0 +1,114 @@
+#masonry_container {
+  /*width: 100%;*/
+  /*height: 100%;*/
+  padding: 10px;
+  margin: 0 auto;
+  margin-top: 15px;
+
+}
+
+html,body {
+  height:100%;
+}
+
+body {
+  /*background-color: #b0c4de;*/
+  /*background-color: rgba(0, 0, 0, 0.1);*/
+}
+
+#topbar {
+  background-color: rgb(255, 255, 255);
+  /*background-color: tomato;*/
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+
+.shadow {
+  box-shadow: inset 1px 1px 0 rgba(0,0,0,.1),
+              inset 0 -1px 0 rgba(0,0,0,.07),
+              0px 2px 3px rgba(0,0,0,0.2);
+}
+
+.item {
+  display: inline-block;
+  width: 300px;
+  /*height: 50px;*/
+  margin-top: 10px;
+  margin-bottom: 10px;
+  background-color: rgb(255, 255, 255);
+  /*background-color: tomato;*/
+  
+  /*border: solid transparent;
+  border-width: 1px 1px 1px 1px;*/
+  /*background-clip: padding-box;*/
+}
+
+
+
+
+
+.notecard-yellow  { background-color: #F1F14E; }
+.notecard-red     { background-color: #F7846A; }
+.notecard-blue    { background-color: #85D6E4; }
+.notecard-green   { background-color: #C9EA5D; }
+
+
+.headline {
+  padding: 15px 15px 0px 15px;
+  font-family: 'Roboto Slab', serif;
+  color: #000;
+  font-weight: 100;
+  font-size: 2em;
+}
+
+.todo {
+  padding: 10px 15px 0px 15px;
+  font-family: 'Roboto Slab', serif;
+  font-weight: 300;
+  overflow: hidden;
+  position: relative;
+}
+
+.todo .overlay {
+  /*opacity:1;*/
+  background-color: rgba(0,0,0, 0.25);
+  /*position: absolute;*/
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  opacity:0;
+
+  -webkit-transition: opacity .25s ease;
+  -moz-transition: opacity .25s ease;
+}
+
+
+.todo .overlay div {
+  position: absolute;
+  text-align: center;
+
+  line-height:25px;
+
+  color: #fff;
+  
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 50px;
+}
+
+
+.todo .overlay:hover {
+  opacity:1;
+}
+
+
+.footer {
+  padding-bottom: 15px; 
+}
+
+
