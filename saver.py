@@ -6,6 +6,7 @@ import requests
 import unicodedata as u
 import requests
 import time
+import datetime
 app = Flask(__name__)
 
 rhine_url = 'http://api.rhine.io/a/'
@@ -23,6 +24,13 @@ def ssl_required(fn):
         return fn(*args, **kwargs)
     return decorated_view
 
+def read_note(filename):
+	with open('data/%s' % filename) as f:
+		text = '\n'.join(f.readlines())
+		text = text.split('---\n')[2]
+		
+		return text.split('\n\n')[0]
+
 @app.route('/')
 def index():
 	results = []
@@ -31,67 +39,93 @@ def index():
 		query = request.args['search']
 	# 	results.append(query)
 	entities = None
+
 	with open(datab) as db:
 		reader = csv.reader(db, delimiter='\\')
-		for row in reader:
-			with open('data/%s' % row[2]) as f:
-				# show only the begnning part of the text
-				text = '\n'.join(f.readlines())
-				text = text.split('\n\n')[0]
-				note = {
-					'url' 		: row[0],
-					'title' 	: row[1],
-					'text'		: text[:1000],
-					'date' 		: row[3],
-					'entities' 	: row[4],
-					'image' 	: row[5],
-				}
-				results.append(note)
 
+		for row in reader:
+			text = read_note(row[3])
+			results.append({
+				'url' 		: row[1],
+				'title' 	: row[2],
+				'text'		: text,
+				'iso_time' 	: row[4], # converting iso to readble
+				'str_time' 	: (datetime.datetime
+					.strptime(row[4], "%Y-%m-%dT%H:%M:%S")
+					.strftime("%b %d, %Y %I:%M %p")),
+				'entities' 	: row[5],
+				'image' 	: row[6],
+			})
 	return render_template('index.html', query=query, results=results)
+
+
 
 @app.route('/llamaz')
 @ssl_required
 def llamaz():
-	url = request.args['url']
-	name = request.args['name']
+	n = {}
+	n['type'] = 'article'
+	n['url'] = request.args['url']
+	n['title'] = request.args['name']
 
-	print '%s : %s' % (url, name)
-	html = requests.get(url).text
-
+	# analyze the text of url given
+	print '%s : %s' % (n['url'], n['title'])
 	g = Goose()
+	html = requests.get(n['url']).text
 	article = g.extract(raw_html = html)
-	article.cleaned_text = u.normalize('NFKD', article.cleaned_text).encode('ascii','ignore')
+	n['text'] = u.normalize('NFKD', article.cleaned_text).encode('ascii','ignore')
+	n['title'] = article.title if len(article.title) > 0 else n['title']
+	n['image'] = str(article.top_image.src) if len(article.top_image.src) > 0 else ''
 
-	print '\nTITLE: %s' % article.title
-	print 'IMAGE: %s' % article.top_image.src if article.top_image else "None"
-	print 'TEXT LENGTH: %s' % len(article.cleaned_text)
+	print '\nTITLE: %s' % n['title']
+	print 'IMAGE: %s' % n['image']
+	print 'TEXT LENGTH: %s' % len(n['text'])
 	
 
-	# save article data to file
-	entities = None
+	# save article data to fil
 	with open(datab) as f:
 		reader = csv.reader(f, delimiter='\\')
 		for row in reader:
-			if row[0] == url:
-				entities = row[4].split('|')
+			if row[1] == n['url']:
+				n['entities'] = row[4].split('|')
 
-	if not entities:
-		entities = requests.get(rhine_url + 'entity_extraction/%s' % article.cleaned_text).json()['entities']
+	if not 'entities' in n:
+		n['entities'] = requests.get(rhine_url + 'entity_extraction/%s' % n['text']).json()['entities']
 		# print '\t' + '\n\t'.join(r['entities'])
 		print 'GETTING ENTITIES...'
 
-		filename = str(time.time()).replace('.', '_')
-		with open('data/%s' % filename , 'w') as f:
-			f.write(article.cleaned_text)
+		n['time_created'] = datetime.datetime.now().isoformat().split('.')[0]
+		print n['time_created'] 
+		n['filename'] = str(time.time()).replace('.', '')
+
+		# write note to file
+		with open('data/%s' % n['filename'] , 'w') as f:
+			f.write('\n'.join([
+				'---',
+				'type: %s' % 'article',
+				'title: %s' % n['title'],
+				'source: %s' % n['url'],
+				'date: %s' % (datetime.datetime
+					.strptime(n['time_created'], "%Y-%m-%dT%H:%M:%S")
+					.strftime("%b %d, %Y %I:%M %p")),
+				'---\n']))
+			
+			f.write(n['text'])
+
+		# save new note in database
 		with open(datab, 'a') as f:
 			writer = csv.writer(f, delimiter='\\')
-			writer.writerow((url, article.title, filename, str(time.time()), 
-				('|'.join(entities)),
-				str(article.top_image.src)))
+			writer.writerow((
+				n['type'],
+				n['url'] ,
+				n['title'] ,
+				n['filename'],
+				n['time_created'],
+				('|'.join(n['entities'])),
+				n['image']),)
 
-	print 'ENTITIES: %s\n' % len(entities)
-	return swal_response % (', '.join((s.replace('_', ' ') for s in entities))) 
+	print 'ENTITIES: %s\n' % len(n['entities'])
+	return swal_response % (', '.join((s.replace('_', '') for s in n['entities']))) 
 	# return app.send_static_file('topbar.js')
 
 

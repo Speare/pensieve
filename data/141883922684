@@ -1,0 +1,53 @@
+---
+type: article
+title: The FBI Used the Web's Favorite Hacking Tool to Unmask Tor Users
+source: http://www.wired.com/2014/12/fbi-metasploit-tor/
+date: Dec 17, 2014 01:00 PM
+---
+For more than a decade, a powerful app called Metasploit has been the most important tool in the hacking world: An open-source Swiss Army knife of hacks that puts the latest exploits in the hands of anyone whos interested, from random criminals to the thousands of security professionals who rely on the app to scour client networks for holes.
+
+Now Metasploit has a new and surprising fan: the FBI. WIRED has learned that FBI agents relied on Flash code from an abandoned Metasploit side project called the Decloaking Engine to stage its first known effort to successfully identify a multitude of  suspects hiding behind the Tor anonymity network.
+
+That attack, Operation Torpedo, was a 2012 sting operation targeting users of three Dark Net child porn sites. Now an attorney for one of the defendants ensnared by the code is challenging the reliability of the hackerware, arguing it may not meet Supreme Court standards for the admission of scientific evidence. The judge decided that I would be entitled to retain an expert, says Omaha defense attorney Joseph Gross. Thats where I am on thisgetting a programming expert involved to examine what the government has characterized as a Flash application attack of the Tor network.
+
+A hearing on the matter is set for February 23.
+
+Tor, a free, open-source project originally funded by the US Navy, is sophisticated anonymity software that protects users by routing traffic through a labyrinthine delta of encrypted connections. Like any encryption or privacy system, Tor is popular with criminals. But it also is used by human rights workers, activists, journalists and whistleblowers worldwide. Indeed, much of the funding for Tor comes from grants issued by federal agencies like the State Department that have a vested interest in supporting safe, anonymous speech for dissidents living under oppressive regimes.
+
+With so many legitimate users depending upon the system, any successful attack on Tor raises alarm and prompts questions, even when the attacker is a law enforcement agency operating under a court order. Did the FBI develop its own attack code, or outsource it to a contractor? Was the NSA involved? Were any innocent users ensnared?
+
+Now, some of those questions have been answered: Metasploits role in Operation Torpedo reveals the FBIs Tor-busting efforts as somewhat improvisational, at least at first, using open-source code available to anyone.
+
+Created in 2003 by white hat hacker HD Moore, Metasploit is best known as a sophisticated open-source penetration testing tool that lets users assemble and deliver an attack from component partsidentify a target, pick an exploit, add a payload and let it fly. Supported by a vast community of contributors and researchers, Metasploit established a kind of lingua franca for attack code. When a new vulnerability emerges, like Aprils Heartbleed bug, a Metasploit module to exploit it is usually not far behind.
+
+Moore believes in transparencyor full disclosurewhen it comes to security holes and fixes, and hes applied that ethic in other projects under the Metasploit banner, like the Month of Browser Bugs, which demonstrated 30 browser security holes in as many days, and Critical.IO, Moores systematic scan of the entire Internet for vulnerable hosts. That project earned Moore a warning from law enforcement officials, who cautioned that he might be running afoul of federal computer crime law.
+
+In 2006, Moore launched the Metasploit Decloaking Engine, a proof-of-concept that compiled five tricks for breaking through anonymization systems. If your Tor install was buttoned down, the site would fail to identify you. But if youd made a mistake, your IP would appear on the screen, proving you werent as anonymous as you thought. That was the whole point of Decloak, says Moore, who is chief research officer at Austin-based Rapid7. I had been aware of these techniques for years, but they werent widely known to others.
+
+One of those tricks was a lean 35-line Flash application. It worked because Adobes Flash plug-in can be used to initiate a direct connection over the Internet, bypassing Tor and giving away the users true IP address. It was a known issue even in 2006, and the Tor Project cautions users not to install Flash.
+
+The decloaking demonstration eventually was rendered obsolete by a nearly idiot-proof version of the Tor client called the Tor Browser Bundle, which made security blunders more difficult. By 2011, Moore says virtually everyone visiting the Metasploit decloaking site was passing the anonymity test, so he retired the service. But when the bureau obtained its Operation Torpedo warrants the following year, it chose Moores Flash code as its network investigative techniquethe FBIs lingo for a court-approved spyware deployment.
+
+Torpedo unfolded when the FBI seized control of a trio of Dark Net child porn sites based in Nebraska. Armed with a special search warrant crafted by Justice Department lawyers in Washington DC, the FBI used the sites to deliver the Flash application to visitors browsers, tricking some of them into identifying their real IP address to an FBI server. The operation identified 25 users in the US and an unknown number abroad.
+
+Gross learned from prosecutors that the FBI used the Decloaking Engine for the attack  they even provided a link to the code on Archive.org. Compared to other FBI spyware deployments, the Decloaking Engine was pretty mild. In other cases, the FBI has, with court approval, used malware to covertly access a targets files, location, web history and webcam. But Operation Torpedo is notable in one way. Its the first timethat we know ofthat the FBI deployed such code broadly against every visitor to a website, instead of targeting a particular suspect.
+
+The tactic is a direct response to the growing popularity of Tor, and in particular an explosion in so-called hidden servicesspecial websites, with addresses ending in .onion, that can be reached only over the Tor network.
+
+Hidden services are a mainstay of the nefarious activities carried out on the so-called Dark Net, the home of drug markets, child porn, and other criminal activity. But theyre also used by organizations that want to evade surveillance or censorship for legitimate reasons, like human rights groups, journalists, and, as of October, even Facebook.
+
+A big problem with hidden service, from a law enforcement perceptive, is that when the feds track down and seize the servers, they find that the web server logs are useless to them. With a conventional crime site, those logs typically provide a handy list of Internet IP addresses for everyone using the site  quickly leveraging one bust into a cascade of dozens, or even hundreds. But over Tor, every incoming connection traces back only as far as the nearest Tor nodea dead end.
+
+Thus, the mass spyware deployment of Operation Torpedo. The Judicial Conference of the United States is currently considering a Justice Department petition to explicitly permit spyware deployments, based in part on the legal framework established by Operation Torpedo. Critics of the petition argue the Justice Department must explain in greater detail how its using spyware, allowing a public debate over the capability.
+
+One thing thats frustrating for me right now, is its impossible to get DOJ to talk about this capability, says Chris Soghoian, principal technologist at the ACLU. People in government are going out of their way to keep this out of the discussion.
+
+For his part, Moore has no objection to the government using every available tool to bust pedophileshe once publicly proposed a similar tactic himself. But he never expected his long-dead experiment to drag him into a federal case. Last month he started receiving inquiries from Gross technical expert, who had questions about the efficacy of the decloaking code. And last week Moore started getting questions directly from the accused pedophile in the case a Rochester IT worker who claims he was falsely implicated by the software.
+
+Moore finds that unlikely, but in the interest of transparency, he answered all the questions in detail. It only seemed fair to reply to his questions, Moore says. Though I dont believe my answers help his case at all.
+
+Using the outdated Decloaking Engine would not likely have resulted in false identifications, says Moore. In fact, the FBI was lucky to trace anyone using the code. Only suspects using extremely old versions of Tor, or who took great pains to install the Flash plug-in against all advice, would have been vulnerable. By choosing an open-source attack, the FBI essentially selected for the handful offenders with the worst op-sec, rather than the worst offenders.
+
+Since Operation Torpedo, though, theres evidence the FBIs anti-Tor capabilities have been rapidly advancing. Torpedo was in November 2012. In late July 2013, computer security experts detected a similar attack through Dark Net websites hosted by a shady ISP called Freedom Hostingcourt records have since confirmed it was another FBI operation. For this one, the bureau used custom attack code that exploited a relatively fresh Firefox vulnerabilitythe hacking equivalent of moving from a bow-and-arrow to a 9-mm pistol. In addition to the IP address, which identifies a household, this code collected the MAC address of the particular computer that infected by the malware.
+
+In the course of nine months they went from off the shelf Flash techniques that simply took advantage of the lack of proxy protection, to custom-built browser exploits, says Soghoian. Thats a pretty amazing growth ... The arms race is going to get really nasty, really fast.
