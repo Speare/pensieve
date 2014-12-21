@@ -7,6 +7,7 @@ import unicodedata as u
 import requests
 import time
 import datetime
+import json
 app = Flask(__name__)
 
 rhine_url = 'http://api.rhine.io/a/'
@@ -31,6 +32,58 @@ def read_note(filename):
 		
 		return text.split('\n\n')[0]
 
+@app.route('/update_note')
+def update_note():
+	print request.args
+	n = {}
+	# n['text'] 	= u.normalize('NFKD', request.args['text']).encode('ascii','ignore')
+	# n['title'] 	= u.normalize('NFKD', request.args['title']).encode('ascii','ignore')
+	# n['color'] 	= u.normalize('NFKD', request.args['color']).encode('ascii','ignore')
+	n['text'] 	= request.args['text']
+	n['title'] 	= request.args['title']
+	n['color'] 	= request.args['color']
+
+	if request.args['isnew'] == 'true':
+		n['time_created'] 	= datetime.datetime.now().isoformat().split('.')[0]
+		n['filename'] 		= str(time.time()).replace('.', '')
+		n['type'] = 'note'
+		# save into main database
+		with open(datab, 'a') as db:
+			writer = csv.writer(db, delimiter='\\')
+			writer.writerow((
+				n['type'],
+				'',
+				n['title'] ,
+				n['filename'],
+				n['time_created'],
+				'', # get entities for this handwritten note later
+				'', # no image right?
+				n['color'])) 
+	else:
+		n['filename'] = request.args['id']
+		with open(datab) as db:
+			reader = csv.reader(db, delimiter='\\')
+			for row in reader:
+				if row[3] == n['filename']:
+					n['time_created'] = row[4]
+
+		
+	print n
+	# write note to file
+	with open('data/%s' % n['filename'] , 'w') as f:
+		f.write('\n'.join([
+			'---',
+			'type: %s' % 'note',
+			'title: %s' % n['title'],
+			'date: %s' % (datetime.datetime
+				.strptime(n['time_created'], "%Y-%m-%dT%H:%M:%S")
+				.strftime("%b %d, %Y %I:%M %p")),
+			'---\n']))
+		f.write(n['text'])
+
+	return json.dumps(n), 200
+
+
 @app.route('/')
 def index():
 	results = []
@@ -45,11 +98,13 @@ def index():
 
 		for row in reader:
 			text = read_note(row[3])
+			print text
 			results.append({
+				'type' 		: row[0],
 				'url' 		: row[1],
 				'title' 	: row[2],
 				'text'		: text,
-				'iso_time' 	: row[4], # converting iso to readble
+				'filename' 	: row[3],
 				'str_time' 	: (datetime.datetime
 					.strptime(row[4], "%Y-%m-%dT%H:%M:%S")
 					.strftime("%b %d, %Y %I:%M %p")),
@@ -59,12 +114,12 @@ def index():
 	return render_template('index.html', query=query, results=results)
 
 
-
 @app.route('/llamaz')
 @ssl_required
 def llamaz():
 	n = {}
 	n['type'] = 'article'
+	n['color'] = 'item-white'
 	n['url'] = request.args['url']
 	n['title'] = request.args['name']
 
@@ -87,46 +142,52 @@ def llamaz():
 		reader = csv.reader(f, delimiter='\\')
 		for row in reader:
 			if row[1] == n['url']:
-				n['entities'] = row[4].split('|')
+				n['entities'] = row[5].split('|')
 
 	if not 'entities' in n:
-		n['entities'] = requests.get(rhine_url + 'entity_extraction/%s' % n['text']).json()['entities']
-		# print '\t' + '\n\t'.join(r['entities'])
-		print 'GETTING ENTITIES...'
+		try:
+			n['entities'] = requests.get(rhine_url + 'entity_extraction/%s' % n['text']).json()['entities']
 
-		n['time_created'] = datetime.datetime.now().isoformat().split('.')[0]
-		print n['time_created'] 
-		n['filename'] = str(time.time()).replace('.', '')
+			# print '\t' + '\n\t'.join(r['entities'])
+			print 'GETTING ENTITIES...'
 
-		# write note to file
-		with open('data/%s' % n['filename'] , 'w') as f:
-			f.write('\n'.join([
-				'---',
-				'type: %s' % 'article',
-				'title: %s' % n['title'],
-				'source: %s' % n['url'],
-				'date: %s' % (datetime.datetime
-					.strptime(n['time_created'], "%Y-%m-%dT%H:%M:%S")
-					.strftime("%b %d, %Y %I:%M %p")),
-				'---\n']))
-			
-			f.write(n['text'])
+			n['time_created'] = datetime.datetime.now().isoformat().split('.')[0]
+			n['filename'] = str(time.time()).replace('.', '')
 
-		# save new note in database
-		with open(datab, 'a') as f:
-			writer = csv.writer(f, delimiter='\\')
-			writer.writerow((
-				n['type'],
-				n['url'] ,
-				n['title'] ,
-				n['filename'],
-				n['time_created'],
-				('|'.join(n['entities'])),
-				n['image']),)
+			# write note to file
+			with open('data/%s' % n['filename'] , 'w') as f:
+				f.write('\n'.join([
+					'---',
+					'type: %s' % 'article',
+					'title: %s' % n['title'],
+					'source: %s' % n['url'],
+					'date: %s' % (datetime.datetime
+						.strptime(n['time_created'], "%Y-%m-%dT%H:%M:%S")
+						.strftime("%b %d, %Y %I:%M %p")),
+					'---\n']))
+				
+				f.write(n['text'])
 
-	print 'ENTITIES: %s\n' % len(n['entities'])
-	return swal_response % (', '.join((s.replace('_', '') for s in n['entities']))) 
-	# return app.send_static_file('topbar.js')
+			# save new note in database
+			with open(datab, 'a') as f:
+				writer = csv.writer(f, delimiter='\\')
+				writer.writerow((
+					n['type'],
+					n['url'] ,
+					n['title'] ,
+					n['filename'],
+					n['time_created'],
+					('|'.join(n['entities'])),
+					n['image']),
+					n['color'])
+		except JSONDecodeError:
+			pass
+	
+	if 'entities' in n:
+		print 'ENTITIES: %s\n' % len(n['entities'])
+		return swal_response % (', '.join((s.replace('_', '') for s in n['entities']))) 
+	else:
+		return 'oops', 200
 
 
 if __name__ == "__main__":
