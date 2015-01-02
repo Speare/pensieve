@@ -1,6 +1,7 @@
 from flask import Flask, request, abort, render_template, redirect, current_app
 from goose import Goose
 from functools import wraps
+from jinja2 import evalcontextfilter, Markup, escape
 import csv
 import requests
 import unicodedata as u
@@ -8,7 +9,19 @@ import requests
 import time
 import datetime
 import json
+import re
 app = Flask(__name__)
+
+
+_paragraph_re = re.compile(r'(?:\r\n|\r|\n){2,}')
+@app.template_filter()
+@evalcontextfilter
+def nl2div(eval_ctx, value):
+    result = u'\n\n'.join(u'<div>%s</div>' % p \
+        for p in _paragraph_re.split(escape(value)))
+    if eval_ctx.autoescape:
+        result = Markup(result)
+    return result
 
 rhine_url = 'http://api.rhine.io/a/'
 swal_response = 'swal("Extracted Entities:", "%s")'
@@ -30,20 +43,24 @@ def read_note(filename):
 		text = '\n'.join(f.readlines())
 		text = text.split('---\n')[2]
 		
-		return text.split('\n\n')[0]
+		return text
 
-@app.route('/update_note')
+@app.route('/update_note', methods=['POST'])
 def update_note():
-	print request.args
 	n = {}
 	# n['text'] 	= u.normalize('NFKD', request.args['text']).encode('ascii','ignore')
 	# n['title'] 	= u.normalize('NFKD', request.args['title']).encode('ascii','ignore')
 	# n['color'] 	= u.normalize('NFKD', request.args['color']).encode('ascii','ignore')
-	n['text'] 	= request.args['text']
-	n['title'] 	= request.args['title']
-	n['color'] 	= request.args['color']
+	
+	
+	print request.form
+	data = json.loads(request.form.get('data'))
+	
+	n['text'] 	= data['text']
+	n['title'] 	= data['title']
+	n['color'] 	= data['color']
 
-	if request.args['isnew'] == 'true':
+	if data['isnew'] == True:
 		n['time_created'] 	= datetime.datetime.now().isoformat().split('.')[0]
 		n['filename'] 		= str(time.time()).replace('.', '')
 		n['type'] = 'note'
@@ -60,14 +77,15 @@ def update_note():
 				'', # no image right?
 				n['color'])) 
 	else:
-		n['filename'] = request.args['id']
+		n['filename'] = data['id']
 		with open(datab) as db:
 			reader = csv.reader(db, delimiter='\\')
 			for row in reader:
 				if row[3] == n['filename']:
 					n['time_created'] = row[4]
+	
 
-		
+
 	print n
 	# write note to file
 	with open('data/%s' % n['filename'] , 'w') as f:
@@ -98,7 +116,6 @@ def index():
 
 		for row in reader:
 			text = read_note(row[3])
-			print text
 			results.append({
 				'type' 		: row[0],
 				'url' 		: row[1],
@@ -178,10 +195,10 @@ def llamaz():
 					n['filename'],
 					n['time_created'],
 					('|'.join(n['entities'])),
-					n['image']),
-					n['color'])
-		except JSONDecodeError:
-			pass
+					n['image'],
+					n['color']))
+		except ValueError:
+			print 'Decoding JSON has failed'
 	
 	if 'entities' in n:
 		print 'ENTITIES: %s\n' % len(n['entities'])

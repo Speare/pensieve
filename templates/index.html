@@ -1,4 +1,3 @@
-<!doctype html>
 <html>
 <head>
     <title></title>
@@ -61,7 +60,7 @@
                 {% endif %}
 
                 <div class="articletext">{{ result.articletext }}</div>
-                <div class="text" contenteditable="true" spellcheck="false" data-placeholder="Add Notes...">{{ result.text }}</div>
+                <div class="text" contenteditable="true" spellcheck="false" data-placeholder="Add Notes...">{{ result.text|nl2div }}</div>
                 
                 <div class="footer"></div>
             </div>
@@ -119,6 +118,12 @@
             }
             if (!this.parentNode.value) {
                 this.parentNode.value = this.parentNode.id;
+            }
+            if (this.textContent) {
+                this.setAttribute('data-div-placeholder-content', 'true');
+            }
+            else {
+                this.removeAttribute('data-div-placeholder-content');
             }
             
             // ON CTRL+SHIFT 1, 2, 3, 4, 5
@@ -221,28 +226,38 @@
             }
 
             var isnew = ((elem.parentNode.value == "new") ? true : false);
-            var text = elem.parentNode.getElementsByClassName("text")[0].textContent;
+            var text = elem.parentNode.getElementsByClassName("text")[0].innerText;
             var title = elem.parentNode.getElementsByClassName("headline")[0].textContent;
             var color = elem.parentNode.className.split(" ").slice(-1)[0];
             console.log(elem.parentNode.className.split(" ").slice(-1)[0]);
 
             console.log(elem.parentNode.value);
-            $.get("/update_note", {
-                id:     elem.parentNode.value,
-                isnew:  isnew,
-                title:  title,
-                text:   text,
-                color:  color,
-            }).done(function(d){
-                var data = JSON.parse(d);
-                // move to new note
-                if(isnew) {
-                    elem.parentNode.id      = data.filename;
-                    elem.parentNode.value   = data.filename;
-                    add_new_note();
-                    msnry.layout()
-                } else {
-                    // just update
+            console.log(text);
+            var data = {
+                data: JSON.stringify({
+                        id:     elem.parentNode.value,
+                        isnew:  isnew,
+                        title:  title,
+                        text:   text,
+                        color:  color,
+                    })
+            };
+
+            $.ajax({
+                url:"/update_note",
+                type: 'POST',
+                dataType: "json",
+                data: data,
+                success : function(data) {
+                    if(isnew) {
+                        elem.parentNode.id      = data.filename;
+                        elem.parentNode.value   = data.filename;
+                        add_new_note();
+                        msnry.layout();
+                    } else {
+                        // just update
+                    }
+
                 }
             });
         } 
@@ -253,6 +268,7 @@
         for( var i=0;i<elems.length;i++) {
             elems[i].addEventListener('keydown', handle_keydown);
             elems[i].addEventListener('input', handle_keydown);
+            elems[i].setAttribute('data-div-placeholder-content', 'true');
         }
         
         window,onload = function() {

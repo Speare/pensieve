@@ -72,12 +72,26 @@ body {
   word-wrap:break-word;
 }
 
-
+# placeholder 
 div[data-placeholder]:not(:focus):not([data-div-placeholder-content]):before {
   content: attr(data-placeholder);
   float: left;
   color: #111;
 }
+
+
+*[data-placeholder]:not(:focus):not([data-div-placeholder-content]):before {
+  content: attr(data-placeholder);
+  float: left;
+  margin-left: 2px;
+  color: #b3b3b3;
+}
+
+/*
+div.editable{
+  border: solid 1px;
+  width: 20em;
+}*/
 
 .item > .footer {
   width: 100%;
