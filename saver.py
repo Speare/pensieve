@@ -89,6 +89,41 @@ def requires_auth(f):
 
 # ----------------------------------- END FLASK STUFF ---------------------------------------
 
+@app.route('/scan')
+@ssl_required
+@requires_auth
+def scan():
+	c = get_db().cursor()
+	user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
+	
+	url = request.args.get('url')
+	title = request.args.get('name')
+	entities = c.execute("SELECT entities FROM notes WHERE url=?", (url,))
+	if entities == None:
+		# then find them
+		g = Goose()
+		html 	= requests.get(n['url']).text
+		article = g.extract(raw_html = html)
+		content = u.normalize('NFKD', article.cleaned_text).encode('ascii','ignore')
+		title 	= article.title if len(article.title) > 0 else n['title']
+		image 	= str(article.top_image.src) if len(article.top_image.src) > 0 else ''
+
+		client = instantiate(api_key)
+		entities = client.run(extraction(article(url)))
+		
+		print '\nTITLE: %s' % title
+		print 'IMAGE: %s' % image
+		print 'TEXT LENGTH: %s' % len(content)
+		print 'ENTITIES: %s' % entities
+
+		c.execute("INSERT INTO groups (color, user_id) VALUES (?, ?)", ('item-white', user_id))
+		get_db().commit()
+		c.execute("INSERT INTO notes (type, title, url, image, content, entities, group_id) \
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+			('article', title, url, image, content, entities, cursor.lastrowid))
+		get_db().commit()
+	return swal_response % (', '.join((s.replace('_', '') for s in entities)))
+
 @app.route('/new_user', methods=['POST'])
 def new_user():
 	c = get_db().cursor()
@@ -150,40 +185,6 @@ def index():
 				for n in c.execute("SELECT (id, title, content, type, url, image) FROM notes where group_id=?", (group_id,))])
 	return render_template('index.html', query=query, results=results)
 
-@app.route('/scan')
-@ssl_required
-@requires_auth
-def scan():
-	c = get_db().cursor()
-	user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
-	
-	url = request.args.get('url')
-	title = request.args.get('name')
-	entities = c.execute("SELECT entities FROM notes WHERE url=?", (url,))
-	if entities == None:
-		# then find them
-		g = Goose()
-		html 	= requests.get(n['url']).text
-		article = g.extract(raw_html = html)
-		content = u.normalize('NFKD', article.cleaned_text).encode('ascii','ignore')
-		title 	= article.title if len(article.title) > 0 else n['title']
-		image 	= str(article.top_image.src) if len(article.top_image.src) > 0 else ''
-
-		client = instantiate(api_key)
-		entities = client.run(extraction(article(url)))
-		
-		print '\nTITLE: %s' % title
-		print 'IMAGE: %s' % image
-		print 'TEXT LENGTH: %s' % len(content)
-		print 'ENTITIES: %s' % entities
-
-		c.execute("INSERT INTO groups (color, user_id) VALUES (?, ?)", ('item-white', user_id))
-		get_db().commit()
-		c.execute("INSERT INTO notes (type, title, url, image, content, entities, group_id) \
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-			('article', title, url, image, content, entities, cursor.lastrowid))
-		get_db().commit()
-	return swal_response % (', '.join((s.replace('_', '') for s in entities)))
 
 if __name__ == "__main__":
     # app.run(debug=True, host="127.0.0.1")
