@@ -1,0 +1,25 @@
+CREATE TABLE notes (
+	id INTEGER PRIMARY KEY,
+	type TEXT NOT NULL,
+	title TEXT NOT NULL,
+	url TEXT NOT NULL,
+	image TEXT NOT NULL,
+	content TEXT NOT NULL,
+	entities TEXT NOT NULL,
+	group_id INTEGER,
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (group_id) REFERENCES groups(id)
+);
+
+CREATE TABLE groups (
+	id INTEGER PRIMARY KEY,
+	color INTEGER,
+	user_id INTEGER,
+	FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE users (
+	id INTEGER PRIMARY KEY,
+	email TEXT UNIQUE NOT NULL,
+	password TEXT NOT NULL
+);
