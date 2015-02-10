@@ -98,30 +98,36 @@ def scan():
     title = request.args.get('name')
     entities = c.execute("SELECT entities FROM notes WHERE url=?", (url,)).fetchone()
     print entities
+    # if already scanned
     if not entities:
-        # then find them
-        g = Goose()
-        html    = requests.get(url).text
-        ea      = g.extract(raw_html = html)
-        content = u.normalize('NFKD', ea.cleaned_text).encode('ascii','ignore')
-        title   = ea.title if len(ea.title) > 0 else title
-        image   = str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
-
-        
+    	# then find them
         client = instantiate(api_key)
-        entities = client.run(extraction(article.fromurl(url)))
-        
-        print '\nTITLE: %s' % title
-        print 'IMAGE: %s' % image
-        print 'TEXT LENGTH: %s' % len(content)
-        print 'ENTITIES: %s' % entities
-
         c.execute("INSERT INTO groups (user_id) VALUES (?)", (user_id,))
         get_db().commit()
-        c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            ('item-white', 'article', title, url, image, content, json.dumps(entities), c.lastrowid, user_id))
+    	
+    	if any((url.endswith(ext) for ext in ('.tif','.tiff','.gif','.jpeg','.jpg','.jif','.png'))):
+    		# image extraction
+    		entities = client.run(extraction(image.fromurl(url)))
+    		print 'IMAGE: {0}'.format(url)
+    		c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
+	            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+	            ('item-white', 'image', '', url, url, '', json.dumps(entities), c.lastrowid, user_id))
+    	else:
+	        # text extraction
+	        g = Goose()
+	        html    = requests.get(url).text
+	        ea      = g.extract(raw_html = html)
+	        content = u.normalize('NFKD', ea.cleaned_text).encode('ascii','ignore')
+	        title   = ea.title if len(ea.title) > 0 else title
+	        img   	= str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
+        	entities = client.run(extraction(text(content)))
+	        
+	        print 'TITLE: {0]\nLENGTH: {1}\nENTITIES: {2}'.format(title, len(content), entities)
+	        c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
+	            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+	            ('item-white', 'article', title, url, img, content, json.dumps(entities), c.lastrowid, user_id))
         get_db().commit()
+
     else:
         entities = json.loads(entities[0])
     return swal_response % (', '.join((s['entity'].replace('_', '') for s in entities)))
@@ -173,24 +179,23 @@ def index():
     query = request.args.get('search')
 
     if query:
-        rs = c.execute('SELECT entities, id from notes where user_id=?', (user_id,)).fetchall()
-        # gr = grouped([entity(e['entity']) for e in json.loads(rs[0][0])])
-        gr = grouped([entity('Dog') for i in range(10)])
-        runs = [distance(text(query), gr)]
-        print json.dumps(runs, indent=2)
-        print client.pipeline(runs)
-
-
-        pass
-        # USE RHINE HERE
+        rs = c.execute('SELECT entities, group_id from notes where user_id=?', (user_id,)).fetchall()
+        runs = [distance(text(query), grouped(*[entity(e['entity']) for e in json.loads(r[0])])) for r in rs]
+        # print json.dumps(runs)
+        dists = client.pipeline(runs)
+        print dists
+        groups = [(rs[i][1],) for i, d in enumerate(dists) if d < 90]
     else:
-        for group in c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall():
-            results.append([
-                { k : n[i] for i, k in enumerate(('id', 'title', 'content', 'type', 'url', 'image', 'color'))}
-                for n in c.execute("SELECT id, title, content, type, url, image, color FROM notes WHERE group_id=?", (group[0],))])
+        groups = c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall()
+
+    for group in groups:
+        results.append([
+            { k : n[i] for i, k in enumerate(('id', 'title', 'content', 'type', 'url', 'image', 'color'))}
+            for n in c.execute("SELECT id, title, content, type, url, image, color FROM notes WHERE group_id=?", (group[0],))])
     return render_template('index.html', query=query, results=results)
 
 
 if __name__ == "__main__":
     # app.run(debug=True, host="127.0.0.1")
     app.run(debug=True, host="0.0.0.0")
+

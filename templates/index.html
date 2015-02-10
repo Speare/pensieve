@@ -44,27 +44,35 @@
         {% if results %}
             {% for group in results %}
                 {% for note in group %}
-                <div id="{{note.id}}" class="item {{note.color}}" value="{{note.id}}">
-                    
-                    {% if results.image %}
-                    <div style="overflow: hidden; max-height: 10em;">
-                        <img class="item image" src="{{ note.image }}"></img>
+                    {% if note.type == "image" %}
+                    <div id="{{note.id}}" class="item {{note.color}}" value="{{note.id}}">
+                        <div>
+                            <img src="{{ note.image }}"></img>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div id="{{note.id}}" class="item {{note.color}}" value="{{note.id}}">
+                        
+                        {% if note.image %}
+                        <div style="overflow: hidden; max-height: 10em;">
+                            <img src="{{ note.image }}"></img>
+                        </div>
+                        {% endif %}
+
+                        {% if note.type == "article" %}
+                        <div class="headline" 
+                            style="cursor: pointer;" 
+                            onclick="window.location='{{ note.url }}';">{{ note.title }}</div>
+                        {% else %}
+                        <div class="headline">{{ note.title }}</div>
+                        {% endif %}
+
+                        <!-- <div class="articletext">{{ note.articletext }}</div> -->
+                        <div class="text" contenteditable="true" spellcheck="false" data-placeholder="Add Notes..."><pre>{{ note.content }}</pre></div>
+                        
+                        <div class="footer"></div>
                     </div>
                     {% endif %}
-
-                    {% if note.type == "article" %}
-                    <div class="headline" 
-                        style="cursor: pointer;" 
-                        onclick="window.location='{{ note.url }}';">{{ note.title }}</div>
-                    {% else %}
-                    <div class="headline">{{ note.title }}</div>
-                    {% endif %}
-
-                    <!-- <div class="articletext">{{ note.articletext }}</div> -->
-                    <div class="text" contenteditable="true" spellcheck="false" data-placeholder="Add Notes..."><pre>{{ note.content }}</pre></div>
-                    
-                    <div class="footer"></div>
-                </div>
                 {% endfor %}
             {% endfor %}
         {% else %}
@@ -144,6 +152,7 @@
                 if (e.keyCode == 52) classie.add(this.parentNode, "item-green");
                 if (e.keyCode == 53) classie.add(this.parentNode, "item-dark-green");
                 if (e.keyCode == 54) classie.add(this.parentNode, "item-white");
+                save_item(this);
             }
 
             // if showing, get out
@@ -155,6 +164,7 @@
             if (e.shiftKey && e.keyCode == 13) {
                 if (classie.has(overlay, "item-modal-overlay-show")) {
                     modal_off(this);
+                    save_item(this);
                 } else {
                     modal_on(this);
                 }
