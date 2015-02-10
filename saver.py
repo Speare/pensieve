@@ -17,11 +17,10 @@ import sqlite3
 app = Flask(__name__)
 api_key = 'RPDWZAPKKKZVIZGNQFWCZAYBE'
 
-def create_db():
-	conn = sqlite3.connect('db.sqlite')
-	c = conn.cursor()
-	for s in open('schema.sql').read().split(';'): c.execute(s)
-	conn.commit()
+# conn = sqlite3.connect('db.sqlite')
+# c = conn.cursor()
+# for s in open('schema.sql').read().split(';'): c.execute(s)
+# conn.commit()
 
 # --------------------------------------- FLASK STUFF ---------------------------------------
 
@@ -69,8 +68,8 @@ failure = lambda x: json.dumps({'Failure' : x})
 # ----------------------------------- AUTHENTICATION  ---------------------------------------
 
 def check_auth(username, password):
-	c = get_db().cursor()
-	return (c.execute("SELECT * FROM users WHERE email='{0}' AND password='{1}'".format(request.authorization.username, request.authorization.password)).fetchone() != None)
+    c = get_db().cursor()
+    return (c.execute("SELECT * FROM users WHERE email='{0}' AND password='{1}'".format(request.authorization.username, request.authorization.password)).fetchone() != None)
 
 def authenticate():
     return Response(
@@ -93,97 +92,103 @@ def requires_auth(f):
 @ssl_required
 @requires_auth
 def scan():
-	c = get_db().cursor()
-	user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
-	
-	url = request.args.get('url')
-	title = request.args.get('name')
-	entities = c.execute("SELECT entities FROM notes WHERE url=?", (url,))
-	if entities == None:
-		# then find them
-		g = Goose()
-		html 	= requests.get(n['url']).text
-		article = g.extract(raw_html = html)
-		content = u.normalize('NFKD', article.cleaned_text).encode('ascii','ignore')
-		title 	= article.title if len(article.title) > 0 else n['title']
-		image 	= str(article.top_image.src) if len(article.top_image.src) > 0 else ''
+    c = get_db().cursor()
+    user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
+    url = request.args.get('url')
+    title = request.args.get('name')
+    entities = c.execute("SELECT entities FROM notes WHERE url=?", (url,)).fetchone()
+    print entities
+    if not entities:
+        # then find them
+        g = Goose()
+        html    = requests.get(url).text
+        ea      = g.extract(raw_html = html)
+        content = u.normalize('NFKD', ea.cleaned_text).encode('ascii','ignore')
+        title   = ea.title if len(ea.title) > 0 else title
+        image   = str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
 
-		client = instantiate(api_key)
-		entities = client.run(extraction(article(url)))
-		
-		print '\nTITLE: %s' % title
-		print 'IMAGE: %s' % image
-		print 'TEXT LENGTH: %s' % len(content)
-		print 'ENTITIES: %s' % entities
+        
+        client = instantiate(api_key)
+        entities = client.run(extraction(article.fromurl(url)))
+        
+        print '\nTITLE: %s' % title
+        print 'IMAGE: %s' % image
+        print 'TEXT LENGTH: %s' % len(content)
+        print 'ENTITIES: %s' % entities
 
-		c.execute("INSERT INTO groups (color, user_id) VALUES (?, ?)", ('item-white', user_id))
-		get_db().commit()
-		c.execute("INSERT INTO notes (type, title, url, image, content, entities, group_id) \
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-			('article', title, url, image, content, entities, cursor.lastrowid))
-		get_db().commit()
-	return swal_response % (', '.join((s.replace('_', '') for s in entities)))
+        c.execute("INSERT INTO groups (user_id) VALUES (?)", (user_id,))
+        get_db().commit()
+        c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            ('item-white', 'article', title, url, image, content, json.dumps(entities), c.lastrowid, user_id))
+        get_db().commit()
+    else:
+        entities = json.loads(entities[0])
+    return swal_response % (', '.join((s['entity'].replace('_', '') for s in entities)))
 
 @app.route('/new_user', methods=['POST'])
 def new_user():
-	c = get_db().cursor()
-	data = json.loads(request.form.get('data'))
-	c.execute('INSERT INTO users (email, password) VALUES (?, ?)', (data['email'], data['password']))
-	get_db().commit()
-	return success(True)
-	
+    c = get_db().cursor()
+    data = json.loads(request.form.get('data'))
+    c.execute('INSERT INTO users (email, password) VALUES (?, ?)', (data['email'], data['password']))
+    get_db().commit()
+    return success(True)
+    
 
 @app.route('/update_note', methods=['POST'])
 @requires_auth
 def update_note():
-	c = get_db().cursor()
-	data = json.loads(request.form.get('data'))
-	user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
-
-	if data['new_note']:
-		if data['new_group']:
-			c.execute('INSERT INTO groups (color, user_id) VALUES (?, ?)', (data['color'], user_id))
-			get_db().commit()
-		c.execute('INSERT INTO notes (type, title, content, group_id) VALUES (?, ?, ?, ?)',
-			('note', data['title'], data['content'], c.lastrowid))
-		get_db().commit()
-	else:
-		c.execute("UPDATE notes SET title=?, content=?, group_id=? WHERE note_id=?",
-			(data['title'], data['content'], data['group_id'], data['id']))
-	return success(True)
+    c = get_db().cursor()
+    data = json.loads(request.form.get('data'))
+    user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
+    print data
+    if data['new_note']:
+        if data['new_group']:
+            c.execute('INSERT INTO groups (user_id) VALUES (?)', (user_id,))
+            get_db().commit()
+        client = instantiate(api_key)
+        entities = entities = client.run(extraction(text(data['content'])))
+        print entities
+        c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+            (data['color'], 'note', data['title'], data['url'], data['image'], data['content'], json.dumps(entities), c.lastrowid, user_id))
+    else:
+    	print data['title'], data['color']
+    	print data['id']
+        c.execute("UPDATE notes SET title=?, content=?, color=? WHERE id=?",
+            (data['title'], data['content'], data['color'], data['id']))
+    get_db().commit()
+    return success(True)
 
 @app.route('/')
 @requires_auth
 def index():
-	c = get_db().cursor()
-	user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
-	# if not user_id: return abort(401)
-	results = []
-	# print request.form.get('data')
-	# data = json.loads(request.form.get('data'))
-	client = instantiate(api_key)
-	query = request.args.get('search')
+    c = get_db().cursor()
+    user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
+    # if not user_id: return abort(401)
+    results = []
+    # print request.form.get('data')
+    # data = json.loads(request.form.get('data'))
+    client = instantiate(api_key)
+    query = request.args.get('search')
 
-	if query:
-		'''
-		search_entity = client.run(extraction(query))
-		r = c.execute('SELECT (entities) from notes WHERE user_id=?', (request.authorization.username,)).fetchall()
-		runs = [distance(entity(search_entity), grouped(es)) for es in r]
-		client.pipeline(runs)
-		'''
-		pass
-		# USE RHINE HERE
-	else:
-		for group in c.execute("SELECT id FROM groups WHERE user_id=?", (request.authorization.username,)).fetchall():
-			results.append([{
-				'id' 		: n[0],
-				'title' 	: n[1],
-				'content' 	: n[2],
-				'type' 		: n[3],
-				'url' 		: n[4],
-				'image' 	: n[5]}
-				for n in c.execute("SELECT (id, title, content, type, url, image) FROM notes where group_id=?", (group_id,))])
-	return render_template('index.html', query=query, results=results)
+    if query:
+        rs = c.execute('SELECT entities, id from notes where user_id=?', (user_id,)).fetchall()
+        # gr = grouped([entity(e['entity']) for e in json.loads(rs[0][0])])
+        gr = grouped([entity('Dog') for i in range(10)])
+        runs = [distance(text(query), gr)]
+        print json.dumps(runs, indent=2)
+        print client.pipeline(runs)
+
+
+        pass
+        # USE RHINE HERE
+    else:
+        for group in c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall():
+            results.append([
+                { k : n[i] for i, k in enumerate(('id', 'title', 'content', 'type', 'url', 'image', 'color'))}
+                for n in c.execute("SELECT id, title, content, type, url, image, color FROM notes WHERE group_id=?", (group[0],))])
+    return render_template('index.html', query=query, results=results)
 
 
 if __name__ == "__main__":

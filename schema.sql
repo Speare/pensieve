@@ -6,14 +6,16 @@ CREATE TABLE notes (
 	image TEXT NOT NULL,
 	content TEXT NOT NULL,
 	entities TEXT NOT NULL,
+	color TEXT NOT NULL,
 	group_id INTEGER,
+	user_id INTEGER,
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (group_id) REFERENCES groups(id)
+	FOREIGN KEY (group_id) REFERENCES groups(id),
+	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE TABLE groups (
 	id INTEGER PRIMARY KEY,
-	color INTEGER,
 	user_id INTEGER,
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );

@@ -42,28 +42,30 @@
 
     <div id="masonry_container">
         {% if results %}
-            {% for result in results %}
-            <div id="{{result.filename}}" class="item shadow" value="{{result.filename}}">
-                
-                {% if results.image %}
-                <div style="overflow: hidden; max-height: 10em;">
-                    <img src="{{ result.image }}"></img>
+            {% for group in results %}
+                {% for note in group %}
+                <div id="{{note.id}}" class="item {{note.color}}" value="{{note.id}}">
+                    
+                    {% if results.image %}
+                    <div style="overflow: hidden; max-height: 10em;">
+                        <img class="item image" src="{{ note.image }}"></img>
+                    </div>
+                    {% endif %}
+
+                    {% if note.type == "article" %}
+                    <div class="headline" 
+                        style="cursor: pointer;" 
+                        onclick="window.location='{{ note.url }}';">{{ note.title }}</div>
+                    {% else %}
+                    <div class="headline">{{ note.title }}</div>
+                    {% endif %}
+
+                    <!-- <div class="articletext">{{ note.articletext }}</div> -->
+                    <div class="text" contenteditable="true" spellcheck="false" data-placeholder="Add Notes..."><pre>{{ note.content }}</pre></div>
+                    
+                    <div class="footer"></div>
                 </div>
-                {% endif %}
-
-                {% if result.type == "article" %}
-                <div class="headline" 
-                    style="cursor: pointer;" 
-                    onclick="window.location='{{ result.url }}';">{{ result.title }}</div>
-                {% else %}
-                <div class="headline">{{ result.title }}</div>
-                {% endif %}
-
-                <div class="articletext">{{ result.articletext }}</div>
-                <div class="text" contenteditable="true" spellcheck="false" data-placeholder="Add Notes...">{{ result.text|nl2div }}</div>
-                
-                <div class="footer"></div>
-            </div>
+                {% endfor %}
             {% endfor %}
         {% else %}
         {% endif %}
@@ -116,15 +118,17 @@
             } else {
                 delete(this.dataset.divPlaceholderContent);
             }
+
+            if (this.textContent) {
+                this.setAttribute('data-div-placeholder-content', 'true');
+            } else {
+                this.removeAttribute('data-div-placeholder-content');
+            }
+            
             if (!this.parentNode.value) {
                 this.parentNode.value = this.parentNode.id;
             }
-            if (this.textContent) {
-                this.setAttribute('data-div-placeholder-content', 'true');
-            }
-            else {
-                this.removeAttribute('data-div-placeholder-content');
-            }
+            
             
             // ON CTRL+SHIFT 1, 2, 3, 4, 5
             if (e.ctrlKey && e.shiftKey && e.keyCode > 48 && e.keyCode < 55) {
@@ -228,18 +232,22 @@
             var isnew = ((elem.parentNode.value == "new") ? true : false);
             var text = elem.parentNode.getElementsByClassName("text")[0].innerText;
             var title = elem.parentNode.getElementsByClassName("headline")[0].textContent;
+            var url = elem.parentNode.getElementsByClassName("headline")[0].href;
+            var image = elem.parentNode.getElementsByClassName("image");
             var color = elem.parentNode.className.split(" ").slice(-1)[0];
             console.log(elem.parentNode.className.split(" ").slice(-1)[0]);
-
             console.log(elem.parentNode.value);
             console.log(text);
             var data = {
                 data: JSON.stringify({
-                        id:     elem.parentNode.value,
-                        isnew:  isnew,
-                        title:  title,
-                        text:   text,
-                        color:  color,
+                        id:         elem.parentNode.value,
+                        url:        url == undefined ? '' : url,
+                        image:      image.length == 0 ? '' : image[0].src,
+                        new_note:   isnew,
+                        new_group:  isnew,
+                        title:      title,
+                        content:    text,
+                        color:      color,
                     })
             };
 

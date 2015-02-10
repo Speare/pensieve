@@ -24,25 +24,21 @@ body {
 }
 
 
-.shadow {
-  box-shadow: inset 1px 1px 0 rgba(0,0,0,.1),
-              inset 0 -1px 0 rgba(0,0,0,.07),
-              0px 2px 3px rgba(0,0,0,0.2);
-}
-
 .item {
   display: inline-block;
   width: 300px;
-  /*height: 50px;*/
   margin-top: 10px;
   margin-bottom: 10px;
   background-color: rgb(255, 255, 255);
   overflow: auto;
-  
   /*background-color: tomato;*/
   /*border: solid transparent;
   border-width: 1px 1px 1px 1px;*/
   /*background-clip: padding-box;*/
+
+  box-shadow: inset 1px 1px 0 rgba(0,0,0,.1),
+              inset 0 -1px 0 rgba(0,0,0,.07),
+              0px 2px 3px rgba(0,0,0,0.2);
 }
 
 .item > div > img {
@@ -55,7 +51,7 @@ body {
   font-weight: 100;
   font-size: 2em;
   outline:none;
-  word-wrap:break-word;
+  word-wrap: break-word;
 }
 
 .item > .headline:empty {
@@ -68,8 +64,10 @@ body {
   font-family: 'Roboto Slab', serif;
   font-weight: 300;
   position: relative;
-  outline:none;
-  word-wrap:break-word;
+  outline: none;
+
+  max-height: 300px;
+  text-overflow: ellipsis;
 }
 
 # placeholder 
@@ -120,6 +118,7 @@ div.editable{
   visibility: visible;
   opacity: 1;
   transition: all 0.2s;
+  overflow: scroll;
 }
 
 .item-modal {

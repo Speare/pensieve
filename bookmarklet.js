@@ -1,11 +1,11 @@
 javascript:(function(){
-	var h = 'http://127.0.0.1:5000/',
+	var h = 'http://localhost:5000/',
 		n = document.location.href,
 		r = document.title;
 
 	var s = document.createElement('script');
 	s.type = 'text/javascript';
-	s.src = h + 'llamaz?url=' + n + '&name=' + r + '&r=' + Math.random().toString(36).substring(7);
+	s.src = h + 'scan?url=' + n + '&name=' + r + '&r=' + Math.random().toString(36).substring(7);
 
 	var a = document.createElement('script');
 	a.type = 'text/javascript';
