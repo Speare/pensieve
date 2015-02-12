@@ -122,7 +122,7 @@ def scan():
 	        img   	= str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
         	entities = client.run(extraction(text(content)))
 	        
-	        print 'TITLE: {0]\nLENGTH: {1}\nENTITIES: {2}'.format(title, len(content), entities)
+	        print 'TITLE: {0}\nLENGTH: {1}\nENTITIES: {2}'.format(title, len(content), entities)
 	        c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
 	            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
 	            ('item-white', 'article', title, url, img, content, json.dumps(entities), c.lastrowid, user_id))
@@ -195,7 +195,10 @@ def index():
             re[1],
             ) for re in res]
         print [sum(gr[0]) / float(len(gr[0])) for gr in gr_dists]
-        groups = [(gr[1],) for gr in gr_dists if sum(gr[0]) / float(len(gr[0])) < 20]
+        # groups = [(gr[1],) for gr in gr_dists if sum(gr[0]) / float(len(gr[0])) < 20]
+        gr_dists = sorted(gr_dists, key=lambda gr: sum(gr[0]) / float(len(gr[0])))
+        print [sum(gr[0]) / float(len(gr[0])) for gr in gr_dists]
+        groups = [(gr[1],) for gr in gr_dists][:3]
     else:
         groups = c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall()
 
