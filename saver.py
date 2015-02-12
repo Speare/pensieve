@@ -179,12 +179,23 @@ def index():
     query = request.args.get('search')
 
     if query:
-        rs = c.execute('SELECT entities, group_id from notes where user_id=?', (user_id,)).fetchall()
-        runs = [distance(text(query), grouped(*[entity(e['entity']) for e in json.loads(r[0])])) for r in rs]
-        # print json.dumps(runs)
-        dists = client.pipeline(runs)
+        # transform to flat list of requests so we can pipeline
+        res = c.execute('SELECT entities, group_id FROM notes WHERE user_id=? AND \
+            (type="article" OR type="iamge")', (user_id,)).fetchall()
+        runs = []
+        for re in res: 
+            runs.extend([(distance(entity(query), entity(e['entity'])), e['relevance'], re[1]) \
+                for e in json.loads(re[0])])
+        print '\n'.join([str(p) for p in runs])
+        dists = client.pipeline([run[0] for run in runs])
         print dists
-        groups = [(rs[i][1],) for i, d in enumerate(dists) if d < 90]
+        # transform back into groups based on group if
+        gr_dists = [(
+            [(d if d else 0) * runs[i][1] for i, d in enumerate(dists) if runs[i][2] == re[1]],
+            re[1],
+            ) for re in res]
+        print [sum(gr[0]) / float(len(gr[0])) for gr in gr_dists]
+        groups = [(gr[1],) for gr in gr_dists if sum(gr[0]) / float(len(gr[0])) < 20]
     else:
         groups = c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall()
 
