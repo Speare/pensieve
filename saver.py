@@ -119,7 +119,8 @@ def scan():
 	        ea      = g.extract(raw_html = html)
 	        content = u.normalize('NFKD', ea.cleaned_text).encode('ascii','ignore')
 	        title   = ea.title if len(ea.title) > 0 else title
-	        img   	= str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
+            try:    img   	= str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
+            except: img = ''
         	entities = client.run(extraction(text(content)))
 	        
 	        print 'TITLE: {0}\nLENGTH: {1}\nENTITIES: {2}'.format(title, len(content), entities)
