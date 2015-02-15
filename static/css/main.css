@@ -23,6 +23,10 @@ body {
   padding-bottom: 15px;
 }
 
+p {
+  margin-top: 0em;
+  margin-bottom: 0.4em;
+}
 
 .item {
   display: inline-block;
@@ -65,9 +69,11 @@ body {
   font-weight: 300;
   position: relative;
   outline: none;
+  word-wrap: normal;
 
   max-height: 300px;
   text-overflow: ellipsis;
+  overflow-y: hidden;
 }
 
 # placeholder 
@@ -130,6 +136,7 @@ div.editable{
   padding: 4em;
   margin: 0 auto;
   z-index: 2000;
+  overflow-y: scroll;
 
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box; 
@@ -139,6 +146,7 @@ div.editable{
 .item-modal > .text {
   /* cahgne this */
   height: 100%;
+  overflow-y: visible;
 }
 
 .item > .headline:empty {

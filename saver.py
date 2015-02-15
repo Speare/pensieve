@@ -28,11 +28,18 @@ _paragraph_re = re.compile(r'(?:\r\n|\r|\n){2,}')
 @app.template_filter()
 @evalcontextfilter
 def nl2div(eval_ctx, value):
-    result = u'\n\n'.join(u'<div>%s</div>' % p \
-        for p in _paragraph_re.split(escape(value)))
-    if eval_ctx.autoescape:
-        result = Markup(result)
-    return result
+    '''Converts newlines into <p> and <br />s.'''
+    value = re.sub(r'\r\n|\r|\n', '\n', value)
+    paras = re.split('\n{2,}', value)
+    paras = [u'<p>%s</p>' % p.replace('\n', '<br />') for p in paras]
+    paras = u'\n\n'.join(paras)
+    return Markup(paras)
+    # result = u'\n\n'.join(u'<div>%s</div>' % p \
+    #     for p in _paragraph_re.split(escape(value)))
+    # if eval_ctx.autoescape:
+    #     result = Markup(result)
+    # return result
+ 
 
 rhine_url = 'http://api.rhine.io/a/'
 swal_response = 'swal("Extracted Entities:", "%s")'
@@ -100,33 +107,33 @@ def scan():
     print entities
     # if already scanned
     if not entities:
-    	# then find them
+        # then find them
         client = instantiate(api_key)
         c.execute("INSERT INTO groups (user_id) VALUES (?)", (user_id,))
         get_db().commit()
-    	
-    	if any((url.endswith(ext) for ext in ('.tif','.tiff','.gif','.jpeg','.jpg','.jif','.png'))):
-    		# image extraction
-    		entities = client.run(extraction(image.fromurl(url)))
-    		print 'IMAGE: {0}'.format(url)
-    		c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
-	            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-	            ('item-white', 'image', '', url, url, '', json.dumps(entities), c.lastrowid, user_id))
-    	else:
-	        # text extraction
-	        g = Goose()
-	        html    = requests.get(url).text
-	        ea      = g.extract(raw_html = html)
-	        content = u.normalize('NFKD', ea.cleaned_text).encode('ascii','ignore')
-	        title   = ea.title if len(ea.title) > 0 else title
-            try:    img   	= str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
+        
+        if any((url.endswith(ext) for ext in ('.tif','.tiff','.gif','.jpeg','.jpg','.jif','.png'))):
+            # image extraction
+            entities = client.run(extraction(image.fromurl(url)))
+            print 'IMAGE: {0}'.format(url)
+            c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                ('item-white', 'image', '', url, url, '', json.dumps(entities), c.lastrowid, user_id))
+        else:
+            # text extraction
+            g = Goose()
+            html    = requests.get(url).text
+            ea      = g.extract(raw_html = html)
+            content = u.normalize('NFKD', ea.cleaned_text).encode('ascii','ignore')
+            title   = ea.title if len(ea.title) > 0 else title
+            try: img = str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
             except: img = ''
-        	entities = client.run(extraction(text(content)))
-	        
-	        print 'TITLE: {0}\nLENGTH: {1}\nENTITIES: {2}'.format(title, len(content), entities)
-	        c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
-	            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-	            ('item-white', 'article', title, url, img, content, json.dumps(entities), c.lastrowid, user_id))
+            entities = client.run(extraction(text(content)))
+            
+            print 'TITLE: {0}\nLENGTH: {1}\nENTITIES: {2}'.format(title, len(content), entities)
+            c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                ('item-white', 'article', title, url, img, content, json.dumps(entities), c.lastrowid, user_id))
         get_db().commit()
 
     else:
@@ -148,22 +155,27 @@ def update_note():
     c = get_db().cursor()
     data = json.loads(request.form.get('data'))
     user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
+    
+    client = instantiate(api_key)
+    entities = client.run(extraction(text(data['content'])))
     print data
+    print entities
     if data['new_note']:
-        if data['new_group']:
-            c.execute('INSERT INTO groups (user_id) VALUES (?)', (user_id,))
-            get_db().commit()
-        client = instantiate(api_key)
-        entities = entities = client.run(extraction(text(data['content'])))
-        print entities
+        # if data['new_group']:
+        c.execute('INSERT INTO groups (user_id) VALUES (?)', (user_id,))
+        get_db().commit()
+        gid = c.lastrowid
+        
         c.execute("INSERT INTO notes (color, type, title, url, image, content, entities, group_id, user_id) \
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-            (data['color'], 'note', data['title'], data['url'], data['image'], data['content'], json.dumps(entities), c.lastrowid, user_id))
+            (data['color'], 'note', data['title'], data['url'], data['image'], data['content'], json.dumps(entities), gid, user_id))
+        c.execute("INSERT INTO notesearch (id, group_id, title, content) VALUES (?, ?, ?, ?)", (c.lastrowid, gid, data['title'], data['content']))
     else:
-    	print data['title'], data['color']
-    	print data['id']
-        c.execute("UPDATE notes SET title=?, content=?, color=? WHERE id=?",
-            (data['title'], data['content'], data['color'], data['id']))
+        print data['title'], data['color']
+        # print data['id']
+        c.execute("UPDATE notes SET title=?, content=?, color=?, entities=? WHERE id=?",
+            (data['title'], data['content'], data['color'], json.dumps(entities), data['id']))
+        c.execute("UPDATE notesearch SET title=?, content=? WHERE id=?", (data['title'], data['content'], c.lastrowid))
     get_db().commit()
     return success(True)
 
@@ -178,35 +190,40 @@ def index():
     # data = json.loads(request.form.get('data'))
     client = instantiate(api_key)
     query = request.args.get('search')
-
+    plainsearch, groups = [], []
     if query:
         # transform to flat list of requests so we can pipeline
-        res = c.execute('SELECT entities, group_id FROM notes WHERE user_id=? AND \
-            (type="article" OR type="iamge")', (user_id,)).fetchall()
+        res = c.execute('SELECT entities, group_id, title FROM notes WHERE user_id=?', (user_id,)).fetchall()
         runs = []
         for re in res: 
-            runs.extend([(distance(entity(query), entity(e['entity'])), e['relevance'], re[1]) \
+            runs.extend([(distance(entity(query), entity(e['entity'])), e['relevance'], re[1], re[2]) \
                 for e in json.loads(re[0])])
-        print '\n'.join([str(p) for p in runs])
-        dists = client.pipeline([run[0] for run in runs])
-        print dists
-        # transform back into groups based on group if
-        gr_dists = [(
-            [(d if d else 0) * runs[i][1] for i, d in enumerate(dists) if runs[i][2] == re[1]],
-            re[1],
-            ) for re in res]
-        print [sum(gr[0]) / float(len(gr[0])) for gr in gr_dists]
-        # groups = [(gr[1],) for gr in gr_dists if sum(gr[0]) / float(len(gr[0])) < 20]
-        gr_dists = sorted(gr_dists, key=lambda gr: sum(gr[0]) / float(len(gr[0])))
-        print [sum(gr[0]) / float(len(gr[0])) for gr in gr_dists]
-        groups = [(gr[1],) for gr in gr_dists][:3]
-    else:
-        groups = c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall()
 
-    for group in groups:
+        # run pipelined
+        dists = client.pipeline([run[0] for run in runs])
+        print '\n'.join(['{0}\t{1}\t{2}'.format(d, runs[i][1], runs[i][0]) for i, d in enumerate(dists)])
+        
+        # transform back into groups based on group_id
+        gr_dists = [[
+            [d * (1 - runs[i][1]) for i, d in enumerate(dists) if runs[i][2] == re[1] and d != None],
+            re[1],
+            re[2],
+            ] for re in res]
+        # calculate weighted scores
+        gr_dists = [gr + [sum(gr[0]) / float(len(gr[0])) if gr[0] else 100,] for gr in gr_dists]
+        gr_dists = sorted(gr_dists, key=lambda gr: gr[3])
+        # print '\n'.join([str(p) for p in gr_dists])
+        # print '\n'.join(['{0}\t{1}'.format(sum(gr[0]) / float(len(gr[0])) if gr[0] else 100, gr[2]) for gr in gr_dists])
+        # also get plaintext matches
+        plainsearch = [g[0] for g in c.execute('SELECT group_id FROM notesearch WHERE content MATCH (?)', (query,)).fetchall()]
+        groups = [gr[1] for gr in gr_dists if gr[1] not in plainsearch and gr[3] < 40]
+    else:
+        groups = [g[0] for g in c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall()]
+
+    for group in plainsearch + groups:
         results.append([
             { k : n[i] for i, k in enumerate(('id', 'title', 'content', 'type', 'url', 'image', 'color'))}
-            for n in c.execute("SELECT id, title, content, type, url, image, color FROM notes WHERE group_id=?", (group[0],))])
+            for n in c.execute("SELECT id, title, content, type, url, image, color FROM notes WHERE group_id=?", (group,))])
     return render_template('index.html', query=query, results=results)
 
 
