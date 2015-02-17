@@ -23,5 +23,7 @@ CREATE TABLE groups (
 CREATE TABLE users (
 	id INTEGER PRIMARY KEY,
 	email TEXT UNIQUE NOT NULL,
-	password TEXT NOT NULL
+	password TEXT NOT NULL,
+	phone_num TEXT NOT NULL
 );
+

@@ -14,13 +14,13 @@ import datetime
 import json
 import re
 import sqlite3
+import twilio.twiml
 app = Flask(__name__)
-api_key = 'RPDWZAPKKKZVIZGNQFWCZAYBE'
 
-# conn = sqlite3.connect('db.sqlite')
-# c = conn.cursor()
-# for s in open('schema.sql').read().split(';'): c.execute(s)
-# conn.commit()
+api_key = 'RPDWZAPKKKZVIZGNQFWCZAYBE'
+rhine_url = 'http://api.rhine.io/a/'
+swal_response = 'swal("Extracted Entities:", "%s")'
+imgexts = ('.tif','.tiff','.gif','.jpeg','.jpg','.jif','.png')
 
 # --------------------------------------- FLASK STUFF ---------------------------------------
 
@@ -39,11 +39,7 @@ def nl2div(eval_ctx, value):
     # if eval_ctx.autoescape:
     #     result = Markup(result)
     # return result
- 
 
-rhine_url = 'http://api.rhine.io/a/'
-swal_response = 'swal("Extracted Entities:", "%s")'
-datab = 'database.csv'
 
 def ssl_required(fn):
     @wraps(fn)
@@ -78,41 +74,78 @@ def check_auth(username, password):
     c = get_db().cursor()
     return (c.execute("SELECT * FROM users WHERE email='{0}' AND password='{1}'".format(request.authorization.username, request.authorization.password)).fetchone() != None)
 
-def authenticate():
-    return Response(
-    'Could not verify your access level for that URL.\n'
-    'You have to login with proper credentials', 401,
-    {'WWW-Authenticate': 'Basic realm="Login Required"'})
-
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         auth = request.authorization
-        if not auth or not check_auth(auth.username, auth.password):
-            return authenticate()
+        if not auth:
+            return Response(
+            'Could not verify your access level for that URL.\n'
+            'You have to login with proper credentials', 401,
+            {'WWW-Authenticate': 'Basic realm="Login Required"'})
+        elif not check_auth(auth.username, auth.password):
+            return redirect('/signup')
         return f(*args, **kwargs)
     return decorated
 
+@app.route('/signup')
+def signup():
+    return render_template('signup.html')
+
+@app.route('/api/newuser', methods=['POST'])
+def newuser():
+    c = get_db().cursor()
+    data = json.loads(request.form.get('data'))
+    c.execute('INSERT INTO users (email, password) VALUES (?, ?)', (data['email'], data['password']))
+    get_db().commit()
+    return success(True)
+
+
 # ----------------------------------- END FLASK STUFF ---------------------------------------
 
-@app.route('/scan')
-@ssl_required
-@requires_auth
-def scan():
-    c = get_db().cursor()
-    user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
-    url = request.args.get('url')
-    title = request.args.get('name')
+
+def search_db(c, query, user_id):
+    client = instantiate(api_key)
+    print query
+    # transform to flat list of requests so we can pipeline
+    res = c.execute('SELECT entities, group_id, title FROM notes WHERE user_id=?', (user_id,)).fetchall()
+    runs = []
+    for re in res: 
+        runs.extend([(distance(entity(query), entity(e['entity'])), e['relevance'], re[1], re[2]) \
+            for e in json.loads(re[0])])
+
+    # run pipelined
+    dists = client.pipeline([run[0] for run in runs])
+    print '\n'.join(['{0}\t{1}\t{2}'.format(d, runs[i][1], runs[i][0]) for i, d in enumerate(dists)])
+    
+    # transform back into groups based on group_id
+    gr_dists = [[
+        [d * (1 - runs[i][1]) for i, d in enumerate(dists) if runs[i][2] == re[1] and d != None],
+        re[1],
+        re[2],
+        ] for re in res]
+    # calculate weighted scores
+    gr_dists = [gr + [sum(gr[0]) / float(len(gr[0])) if gr[0] else 100,] for gr in gr_dists]
+    gr_dists = sorted(gr_dists, key=lambda gr: gr[3])
+    print '\n'.join([str(p) for p in gr_dists])
+    print '\n'.join(['{0}\t{1}'.format(sum(gr[0]) / float(len(gr[0])) if gr[0] else 100, gr[2]) for gr in gr_dists])
+    
+    # also get plaintext matches
+    # plainsearch = [g[0] for g in c.execute('SELECT group_id FROM notesearch WHERE content MATCH (?)', (query,)).fetchall()]
+    plainsearch = []
+    groups = [gr[1] for gr in gr_dists if gr[1] not in plainsearch and gr[3] < 40]
+
+    return plainsearch, groups
+
+def import_link(c, url, user_id):
+    '''extract an article and import it'''
+    c.execute("INSERT INTO groups (user_id) VALUES (?)", (user_id,))
+    client = instantiate(api_key)
+
     entities = c.execute("SELECT entities FROM notes WHERE url=?", (url,)).fetchone()
-    print entities
-    # if already scanned
+    # brand new
     if not entities:
-        # then find them
-        client = instantiate(api_key)
-        c.execute("INSERT INTO groups (user_id) VALUES (?)", (user_id,))
-        get_db().commit()
-        
-        if any((url.endswith(ext) for ext in ('.tif','.tiff','.gif','.jpeg','.jpg','.jif','.png'))):
+        if any((url.endswith(ext) for ext in imgexts)):
             # image extraction
             entities = client.run(extraction(image.fromurl(url)))
             print 'IMAGE: {0}'.format(url)
@@ -121,11 +154,11 @@ def scan():
                 ('item-white', 'image', '', url, url, '', json.dumps(entities), c.lastrowid, user_id))
         else:
             # text extraction
-            g = Goose()
+            g       = Goose()
             html    = requests.get(url).text
             ea      = g.extract(raw_html = html)
             content = u.normalize('NFKD', ea.cleaned_text).encode('ascii','ignore')
-            title   = ea.title if len(ea.title) > 0 else title
+            title   = u.normalize('NFKD', ea.title).encode('ascii', 'ignore') if len(ea.title) > 0 else ''
             try: img = str(ea.top_image.src) if len(ea.top_image.src) > 0 else ''
             except: img = ''
             entities = client.run(extraction(text(content)))
@@ -135,19 +168,54 @@ def scan():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                 ('item-white', 'article', title, url, img, content, json.dumps(entities), c.lastrowid, user_id))
         get_db().commit()
-
+    # if already scanned
     else:
         entities = json.loads(entities[0])
+    return entities
+
+# ---------------------------------------- ENDPOINTS --------------------------------------------
+
+@app.route('/scan')
+@ssl_required
+@requires_auth
+def scan():
+    c = get_db().cursor()
+    user_id = c.execute("SELECT id FROM users WHERE email=?", (request.authorization.username,)).fetchone()[0]
+    url = request.args.get('url')
+    title = request.args.get('name')
+    entities = import_link(c, url, user_id)
+    
     return swal_response % (', '.join((s['entity'].replace('_', '') for s in entities)))
 
-@app.route('/new_user', methods=['POST'])
-def new_user():
+@app.route('/tcallback', methods=['GET', 'POST'])
+def twillio_callback():
     c = get_db().cursor()
-    data = json.loads(request.form.get('data'))
-    c.execute('INSERT INTO users (email, password) VALUES (?, ?)', (data['email'], data['password']))
-    get_db().commit()
-    return success(True)
+    msg = request.values.get('Body')
+    num = request.values.get('From')
+    user_id = c.execute('SELECT id FROM users WHERE phone_num=?', ('+6143903969',)).fetchone()[0]
+    reply = ''
     
+    if user_id:
+        if msg.startswith('http'):
+            # extract the artice
+            entities = import_link(c, msg, user_id)
+            print 'msg: {0}\nnum: {1}'.format(msg, num)
+            reply = 'Sure, that article is about:\n' + ', '.join([e.get('entity') for e in entities])
+        elif msg.lower().strip().startswith('fetch'):
+            query = ' '.join(msg.split()[1:]).lower().strip()
+            plainsearch, groups = search_db(c, query, user_id)
+            searches = plainsearch[0] if plainsearch else [] + groups[0] if groups else []
+            if searches:
+                reply = c.executemany('SELECT title, url FROM notes WHERE group_id=?', searches)
+            else:
+                reply = "Sorry, I couldn't find anything about that."
+    else:
+        reply = "Sorry, couldn't recognize your phone number. Please sign up first."
+    resp = twilio.twiml.Response()
+    resp.message(reply)
+    print 'SMS Reply: {0}'.format(reply)
+    return str(resp)
+
 
 @app.route('/update_note', methods=['POST'])
 @requires_auth
@@ -179,6 +247,7 @@ def update_note():
     get_db().commit()
     return success(True)
 
+
 @app.route('/')
 @requires_auth
 def index():
@@ -188,35 +257,10 @@ def index():
     results = []
     # print request.form.get('data')
     # data = json.loads(request.form.get('data'))
-    client = instantiate(api_key)
     query = request.args.get('search')
     plainsearch, groups = [], []
     if query:
-        # transform to flat list of requests so we can pipeline
-        res = c.execute('SELECT entities, group_id, title FROM notes WHERE user_id=?', (user_id,)).fetchall()
-        runs = []
-        for re in res: 
-            runs.extend([(distance(entity(query), entity(e['entity'])), e['relevance'], re[1], re[2]) \
-                for e in json.loads(re[0])])
-
-        # run pipelined
-        dists = client.pipeline([run[0] for run in runs])
-        print '\n'.join(['{0}\t{1}\t{2}'.format(d, runs[i][1], runs[i][0]) for i, d in enumerate(dists)])
-        
-        # transform back into groups based on group_id
-        gr_dists = [[
-            [d * (1 - runs[i][1]) for i, d in enumerate(dists) if runs[i][2] == re[1] and d != None],
-            re[1],
-            re[2],
-            ] for re in res]
-        # calculate weighted scores
-        gr_dists = [gr + [sum(gr[0]) / float(len(gr[0])) if gr[0] else 100,] for gr in gr_dists]
-        gr_dists = sorted(gr_dists, key=lambda gr: gr[3])
-        # print '\n'.join([str(p) for p in gr_dists])
-        # print '\n'.join(['{0}\t{1}'.format(sum(gr[0]) / float(len(gr[0])) if gr[0] else 100, gr[2]) for gr in gr_dists])
-        # also get plaintext matches
-        plainsearch = [g[0] for g in c.execute('SELECT group_id FROM notesearch WHERE content MATCH (?)', (query,)).fetchall()]
-        groups = [gr[1] for gr in gr_dists if gr[1] not in plainsearch and gr[3] < 40]
+        plainsearch, groups = search_db(c, query, user_id)
     else:
         groups = [g[0] for g in c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall()]
 
@@ -230,4 +274,3 @@ def index():
 if __name__ == "__main__":
     # app.run(debug=True, host="127.0.0.1")
     app.run(debug=True, host="0.0.0.0")
-
