@@ -1,6 +1,7 @@
 output.csv
 db.sqlite
 sftp-config.json
+*.zip
 
 
 # Byte-compiled / optimized / DLL files
