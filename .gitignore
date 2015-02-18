@@ -1,6 +1,10 @@
 output.csv
 db.sqlite
 key
+sftp-config.json
+*.zip
+
+>>>>>>> f939c7d22f43d290bfbc84502cf185e749990e91
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
