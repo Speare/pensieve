@@ -17,7 +17,7 @@ import sqlite3
 import twilio.twiml
 app = Flask(__name__)
 
-api_key = 'RPDWZAPKKKZVIZGNQFWCZAYBE'
+api_key = open('key').read()
 rhine_url = 'http://api.rhine.io/a/'
 swal_response = 'swal("Extracted Entities:", "%s")'
 imgexts = ('.tif','.tiff','.gif','.jpeg','.jpg','.jif','.png')
@@ -139,12 +139,13 @@ def search_db(c, query, user_id):
 
 def import_link(c, url, user_id):
     '''extract an article and import it'''
-    c.execute("INSERT INTO groups (user_id) VALUES (?)", (user_id,))
     client = instantiate(api_key)
 
     entities = c.execute("SELECT entities FROM notes WHERE url=?", (url,)).fetchone()
     # brand new
     if not entities:
+        c.execute("INSERT INTO groups (user_id) VALUES (?)", (user_id,))
+        print c.lastrowid
         if any((url.endswith(ext) for ext in imgexts)):
             # image extraction
             entities = client.run(extraction(image.fromurl(url)))
@@ -263,8 +264,8 @@ def index():
         plainsearch, groups = search_db(c, query, user_id)
     else:
         groups = [g[0] for g in c.execute("SELECT id FROM groups WHERE user_id=?", (user_id,)).fetchall()]
-
     for group in plainsearch + groups:
+        print group
         results.append([
             { k : n[i] for i, k in enumerate(('id', 'title', 'content', 'type', 'url', 'image', 'color'))}
             for n in c.execute("SELECT id, title, content, type, url, image, color FROM notes WHERE group_id=?", (group,))])

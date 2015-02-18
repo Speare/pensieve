@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Pensieve Signup</title>
+    <link rel="stylesheet" type="text/css" href="static/css/default.css" />
+    <link rel="stylesheet" type="text/css" href="static/css/component.css" />
+    <link rel="stylesheet" type="text/css" href="static/css/main.css">
+
+    <style>
+    .main {
+    	margin-top: 10%;
+    	width: 100%;
+    }
+
+	form {
+		width: 100%;
+		margin: 0 auto;
+		display: inline-block;
+		text-align: center;
+    }
+
+    form > input {
+    	border: none;
+    }
+	</style>
+</head>
+
+<body id="home">
+	<div class="container">
+		<div class="main">
+			<form onsubmit="return run();">
+				<input type="text" name="entity1" value="cat">
+				<br><br>
+				<input type="text" name="entity2" value="dog">
+				<br><br>
+				<input type="submit" value="Submit">
+			</form>
+			<span class="clear"></span>
+		</div>
+	</div>
+</body>
+</html>
+
+<html>
+<head>
